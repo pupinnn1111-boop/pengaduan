@@ -1,0 +1,385 @@
+{
+  "info": {
+    "name": "Pengaduan Masyarakat API",
+    "description": "Collection lengkap untuk testing REST API Sistem Pelaporan Pengaduan Masyarakat",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3000", "type": "string" },
+    { "key": "token_user", "value": "", "type": "string" },
+    { "key": "token_admin", "value": "", "type": "string" },
+    { "key": "token_superadmin", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "🔐 AUTH",
+      "item": [
+        {
+          "name": "Register User",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"john_doe\",\n  \"email\": \"john@gmail.com\",\n  \"password\": \"secret123\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/auth/register", "host": ["{{base_url}}"], "path": ["auth", "register"] }
+          }
+        },
+        {
+          "name": "Login User",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "if (pm.response.code === 200) {",
+                "  const res = pm.response.json();",
+                "  pm.collectionVariables.set('token_user', res.data.token);",
+                "}"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"budi@gmail.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "Login Admin",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "if (pm.response.code === 200) {",
+                "  const res = pm.response.json();",
+                "  pm.collectionVariables.set('token_admin', res.data.token);",
+                "}"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@pengaduan.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "Login Super Admin",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "if (pm.response.code === 200) {",
+                "  const res = pm.response.json();",
+                "  pm.collectionVariables.set('token_superadmin', res.data.token);",
+                "}"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"superadmin@pengaduan.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/auth/login", "host": ["{{base_url}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token_user}}" }],
+            "url": { "raw": "{{base_url}}/auth/me", "host": ["{{base_url}}"], "path": ["auth", "me"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👥 USERS (super_admin only)",
+      "item": [
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token_superadmin}}" }],
+            "url": { "raw": "{{base_url}}/users", "host": ["{{base_url}}"], "path": ["users"] }
+          }
+        },
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token_superadmin}}" }],
+            "url": { "raw": "{{base_url}}/users/1", "host": ["{{base_url}}"], "path": ["users", "1"] }
+          }
+        },
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_superadmin}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"user_baru\",\n  \"email\": \"userbaru@gmail.com\",\n  \"password\": \"password123\",\n  \"role\": \"admin\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/users", "host": ["{{base_url}}"], "path": ["users"] }
+          }
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_superadmin}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"admin\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/users/3", "host": ["{{base_url}}"], "path": ["users", "3"] }
+          }
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token_superadmin}}" }],
+            "url": { "raw": "{{base_url}}/users/5", "host": ["{{base_url}}"], "path": ["users", "5"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📂 CATEGORIES",
+      "item": [
+        {
+          "name": "Get All Categories",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token_user}}" }],
+            "url": { "raw": "{{base_url}}/categories", "host": ["{{base_url}}"], "path": ["categories"] }
+          }
+        },
+        {
+          "name": "Create Category",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_admin}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Pendidikan\"\n}" },
+            "url": { "raw": "{{base_url}}/categories", "host": ["{{base_url}}"], "path": ["categories"] }
+          }
+        },
+        {
+          "name": "Update Category",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_admin}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Infrastruktur & Jalan\"\n}" },
+            "url": { "raw": "{{base_url}}/categories/1", "host": ["{{base_url}}"], "path": ["categories", "1"] }
+          }
+        },
+        {
+          "name": "Delete Category",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }],
+            "url": { "raw": "{{base_url}}/categories/6", "host": ["{{base_url}}"], "path": ["categories", "6"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📋 LAPORAN",
+      "item": [
+        {
+          "name": "Get All Laporan",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token_user}}" }],
+            "url": {
+              "raw": "{{base_url}}/laporan?page=1&limit=5",
+              "host": ["{{base_url}}"],
+              "path": ["laporan"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "5" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Laporan - Filter Status Pending",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }],
+            "url": {
+              "raw": "{{base_url}}/laporan?status=pending",
+              "host": ["{{base_url}}"],
+              "path": ["laporan"],
+              "query": [{ "key": "status", "value": "pending" }]
+            }
+          }
+        },
+        {
+          "name": "Get Laporan - Search by Title",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }],
+            "url": {
+              "raw": "{{base_url}}/laporan?search=jalan",
+              "host": ["{{base_url}}"],
+              "path": ["laporan"],
+              "query": [{ "key": "search", "value": "jalan" }]
+            }
+          }
+        },
+        {
+          "name": "Get Laporan by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token_user}}" }],
+            "url": { "raw": "{{base_url}}/laporan/1", "host": ["{{base_url}}"], "path": ["laporan", "1"] }
+          }
+        },
+        {
+          "name": "Create Laporan (tanpa gambar)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token_user}}" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "category_id", "value": "1", "type": "text" },
+                { "key": "title", "value": "Jalan Berlubang di Jl. Sudirman No.10", "type": "text" },
+                { "key": "description", "value": "Terdapat lubang besar di tengah jalan yang sangat membahayakan pengendara sepeda motor.", "type": "text" }
+              ]
+            },
+            "url": { "raw": "{{base_url}}/laporan", "host": ["{{base_url}}"], "path": ["laporan"] }
+          }
+        },
+        {
+          "name": "Create Laporan (dengan gambar)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token_user}}" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "category_id", "value": "2", "type": "text" },
+                { "key": "title", "value": "Sampah Menumpuk di TPS RT 03", "type": "text" },
+                { "key": "description", "value": "Sampah sudah menumpuk 5 hari dan tidak diangkut petugas.", "type": "text" },
+                { "key": "image", "type": "file", "src": "" }
+              ]
+            },
+            "url": { "raw": "{{base_url}}/laporan", "host": ["{{base_url}}"], "path": ["laporan"] }
+          }
+        },
+        {
+          "name": "Update Status Laporan (admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_admin}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"approved\"\n}" },
+            "url": { "raw": "{{base_url}}/laporan/1", "host": ["{{base_url}}"], "path": ["laporan", "1"] }
+          }
+        },
+        {
+          "name": "Update Laporan (user sendiri)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token_user}}" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "title", "value": "Jalan Berlubang - Update Lokasi Tepat", "type": "text" },
+                { "key": "description", "value": "Lubang terdapat di KM 2 jalan Sudirman, dekat minimarket.", "type": "text" }
+              ]
+            },
+            "url": { "raw": "{{base_url}}/laporan/1", "host": ["{{base_url}}"], "path": ["laporan", "1"] }
+          }
+        },
+        {
+          "name": "Delete Laporan",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token_user}}" }],
+            "url": { "raw": "{{base_url}}/laporan/5", "host": ["{{base_url}}"], "path": ["laporan", "5"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "💬 COMMENTS",
+      "item": [
+        {
+          "name": "Get All Comments",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }],
+            "url": { "raw": "{{base_url}}/comments", "host": ["{{base_url}}"], "path": ["comments"] }
+          }
+        },
+        {
+          "name": "Get Comments by Laporan ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token_user}}" }],
+            "url": {
+              "raw": "{{base_url}}/comments?laporan_id=1",
+              "host": ["{{base_url}}"],
+              "path": ["comments"],
+              "query": [{ "key": "laporan_id", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Create Comment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_admin}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"laporan_id\": 1,\n  \"comment\": \"Laporan sudah diterima dan akan segera ditindaklanjuti oleh tim terkait.\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/comments", "host": ["{{base_url}}"], "path": ["comments"] }
+          }
+        },
+        {
+          "name": "Delete Comment",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}" }],
+            "url": { "raw": "{{base_url}}/comments/1", "host": ["{{base_url}}"], "path": ["comments", "1"] }
+          }
+        }
+      ]
+    }
+  ]
+}
