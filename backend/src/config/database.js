@@ -9,7 +9,7 @@ const sequelize = new Sequelize(
     host: process.env.DB_HOST,
     port: process.env.DB_PORT || 3306,
     dialect: 'mysql',
-    logging: process.env.NODE_ENV === 'development' ? console.log : false,
+    logging: false,
     pool: {
       max: 10,
       min: 0,
@@ -24,9 +24,8 @@ const connectDB = async () => {
     await sequelize.authenticate();
     console.log('✅ Database connected successfully');
 
-    // Sync semua model (alter: true agar tidak hapus data)
-    await sequelize.sync({ alter: true });
-    console.log('✅ Models synchronized');
+    await sequelize.sync();
+console.log('✅ Models synchronized');
   } catch (error) {
     console.error('❌ Database connection failed:', error.message);
     process.exit(1);

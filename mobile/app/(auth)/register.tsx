@@ -14,6 +14,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
+
 export default function RegisterScreen() {
   const { register } = useAuth();
   const router = useRouter();
@@ -53,8 +54,10 @@ export default function RegisterScreen() {
 
     if (err) {
       setErrorMsg(err);
+    } else {
+      router.replace('/(auth)/login');
     }
-  };
+  }; 
 
   return (
     <KeyboardAvoidingView
@@ -94,7 +97,7 @@ export default function RegisterScreen() {
               <Ionicons name="person-outline" size={20} color="#94A3B8" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="budi_santo"
+                placeholder="username"
                 placeholderTextColor="#94A3B8"
                 value={username}
                 onChangeText={setUsername}

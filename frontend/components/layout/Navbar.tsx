@@ -57,12 +57,6 @@ export default function Navbar({ onMenuToggle }: NavbarProps) {
           {greeting}, <strong className="text-text-primary font-semibold">{user?.username}</strong>
         </span>
 
-        {/* Notifications mock */}
-        <button className="relative rounded-xl p-2 text-text-secondary hover:bg-background hover:text-text-primary transition-all">
-          <HiBell className="h-5 w-5" />
-          <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-danger ring-2 ring-surface" />
-        </button>
-
         {/* Profile Dropdown */}
         <div className="relative">
           <button

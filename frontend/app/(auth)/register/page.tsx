@@ -49,8 +49,11 @@ export default function RegisterPage() {
     if (errorMsg) {
       toast.error(errorMsg);
     } else {
-      toast.success('Pendaftaran berhasil! Selamat datang.');
-      router.push('/dashboard');
+      toast.success('Pendaftaran berhasil! Silakan login.');
+    
+      setTimeout(() => {
+        router.push('/login');
+      }, 1500);
     }
   };
 
@@ -70,7 +73,7 @@ export default function RegisterPage() {
         <Input
           label="Nama Pengguna"
           type="text"
-          placeholder="budi_sanjaya"
+          placeholder="username"
           error={errors.username?.message}
           {...register('username', {
             required: 'Nama pengguna wajib diisi',

@@ -89,19 +89,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = async (data: RegisterData): Promise<string | null> => {
     try {
       setIsLoading(true);
+  
       const res = await api.register(data);
-      if (res.success && res.data) {
-        const { token: tokenVal, user: userVal } = res.data;
-        await AsyncStorage.setItem('token', tokenVal);
-        await AsyncStorage.setItem('user', JSON.stringify(userVal));
-        setToken(tokenVal);
-        setUser(userVal);
+  
+      if (res.success) {
         return null;
       }
+  
       return res.message || 'Gagal mendaftar';
     } catch (error: any) {
       console.log('Register error:', error);
-      return error.response?.data?.message || error.message || 'Terjadi kesalahan jaringan';
+  
+      return (
+        error.response?.data?.message ||
+        error.message ||
+        'Terjadi kesalahan jaringan'
+      );
     } finally {
       setIsLoading(false);
     }

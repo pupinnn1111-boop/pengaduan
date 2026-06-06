@@ -94,15 +94,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   register: async (data) => {
     try {
       set({ isLoading: true });
-
+  
       const response = await authApi.register(data);
-      const { token, user } = response.data;
-
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-
-      set({ token, user, isLoading: false });
-      return null; // no error
+  
+      set({ isLoading: false });
+  
+      return response.success ? null : 'Gagal mendaftar';
     } catch (error) {
       set({ isLoading: false });
       return extractErrorMessage(error);
