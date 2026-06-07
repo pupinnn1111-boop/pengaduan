@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -26,23 +26,30 @@ export default function LaporanDetail() {
   const router = useRouter();
 
   const [report, setReport] = useState<Laporan | null>(null);
-  const [apiBaseUrl, setApiBaseUrl] = useState('');
-  
+  const [resolvedBaseUrl, setResolvedBaseUrl] = useState<string>('');
+  const [imageError, setImageError] = useState(false);
+
   // Loading states
   const [isLoading, setIsLoading] = useState(true);
   const [isActionLoading, setIsActionLoading] = useState(false);
-  
+  const isActionLoadingRef = useRef(false);
+
   // Comments
   const [commentText, setCommentText] = useState('');
   const [isCommentSubmitting, setIsCommentSubmitting] = useState(false);
+  const isCommentSubmittingRef = useRef(false);
+
+  // Resolve base URL once on mount
+  useEffect(() => {
+    api.getApiBaseUrl().then((url) => {
+      setResolvedBaseUrl(url);
+      setImageError(false);
+    });
+  }, []);
 
   const fetchReportDetails = useCallback(async () => {
     try {
       setIsLoading(true);
-      // Get base URL for images
-      const url = await api.getApiBaseUrl();
-      setApiBaseUrl(url);
-
       const res = await api.getLaporanById(reportId);
       if (res.success && res.data) {
         setReport(res.data);
@@ -63,8 +70,13 @@ export default function LaporanDetail() {
     fetchReportDetails();
   }, [fetchReportDetails]);
 
+  useEffect(() => {
+    setImageError(false);
+  }, [report?.image]);
+
   const handleStatusUpdate = async (newStatus: 'pending' | 'approved' | 'rejected') => {
-    if (!report) return;
+    if (!report || isActionLoadingRef.current) return;
+    isActionLoadingRef.current = true;
     setIsActionLoading(true);
     try {
       const formData = new FormData();
@@ -72,13 +84,8 @@ export default function LaporanDetail() {
 
       const res = await api.updateLaporan(report.id, formData);
       if (res.success) {
-        Alert.alert(
-          'Sukses',
-          `Status laporan berhasil diubah menjadi ${
-            newStatus === 'approved' ? 'Disetujui' : newStatus === 'rejected' ? 'Ditolak' : 'Menunggu'
-          }`
-        );
-        // Reload details
+        const labelMap = { approved: 'Disetujui', rejected: 'Ditolak', pending: 'Menunggu' };
+        Alert.alert('Sukses', `Status laporan berhasil diubah menjadi ${labelMap[newStatus]}`);
         const reloadRes = await api.getLaporanById(report.id);
         if (reloadRes.success && reloadRes.data) {
           setReport(reloadRes.data);
@@ -91,6 +98,7 @@ export default function LaporanDetail() {
       Alert.alert('Gagal', e.response?.data?.message || e.message || 'Terjadi kesalahan');
     } finally {
       setIsActionLoading(false);
+      isActionLoadingRef.current = false;
     }
   };
 
@@ -105,6 +113,8 @@ export default function LaporanDetail() {
           text: 'Hapus Laporan',
           style: 'destructive',
           onPress: async () => {
+            if (isActionLoadingRef.current) return;
+            isActionLoadingRef.current = true;
             setIsActionLoading(true);
             try {
               const res = await api.deleteLaporan(report.id);
@@ -119,6 +129,7 @@ export default function LaporanDetail() {
               Alert.alert('Gagal', e.message);
             } finally {
               setIsActionLoading(false);
+              isActionLoadingRef.current = false;
             }
           },
         },
@@ -128,12 +139,14 @@ export default function LaporanDetail() {
 
   const handleCommentSubmit = async () => {
     if (!report || !commentText.trim()) return;
+    if (isCommentSubmittingRef.current) return;
+
+    isCommentSubmittingRef.current = true;
     setIsCommentSubmitting(true);
     try {
       const res = await api.createComment(report.id, commentText.trim());
       if (res.success) {
         setCommentText('');
-        // Reload report to refresh comments list
         const reloadRes = await api.getLaporanById(report.id);
         if (reloadRes.success && reloadRes.data) {
           setReport(reloadRes.data);
@@ -146,6 +159,7 @@ export default function LaporanDetail() {
       Alert.alert('Gagal', e.message);
     } finally {
       setIsCommentSubmitting(false);
+      isCommentSubmittingRef.current = false;
     }
   };
 
@@ -162,7 +176,6 @@ export default function LaporanDetail() {
             try {
               const res = await api.deleteComment(commentId);
               if (res.success) {
-                // Reload report details
                 const reloadRes = await api.getLaporanById(reportId);
                 if (reloadRes.success && reloadRes.data) {
                   setReport(reloadRes.data);
@@ -222,12 +235,13 @@ export default function LaporanDetail() {
   if (!report) return null;
 
   const badge = getStatusBadgeStyle(report.status);
+  const imageUri = api.buildImageUrl(resolvedBaseUrl, report.image);
 
   // Authorization checks
   const isOwner = user?.id === report.user_id;
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
   const isSuperAdmin = user?.role === 'super_admin';
-  
+
   const canDelete = isSuperAdmin || (user?.role === 'user' && isOwner);
   const canComment = isAdmin || isOwner;
 
@@ -249,7 +263,11 @@ export default function LaporanDetail() {
             <Text style={styles.headerSubtitle}>{report.category?.name || 'Aduan'}</Text>
           </View>
           {canDelete && (
-            <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteReport}>
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={handleDeleteReport}
+              disabled={isActionLoading}
+            >
               <Ionicons name="trash-outline" size={22} color="#EF4444" />
             </TouchableOpacity>
           )}
@@ -258,12 +276,27 @@ export default function LaporanDetail() {
         <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
           {/* Attached Image */}
           <View style={styles.imageCard}>
-            {report.image ? (
+            {imageUri && resolvedBaseUrl && !imageError ? (
               <Image
-                source={{ uri: `${apiBaseUrl}/uploads/${report.image}` }}
+                key={imageUri}
+                source={{ uri: imageUri }}
                 style={styles.attachedImage}
                 resizeMode="cover"
+                onError={() => setImageError(true)}
               />
+            ) : report.image && !resolvedBaseUrl ? (
+              <View style={styles.noImagePlaceholder}>
+                <ActivityIndicator color="#2563EB" size="small" />
+                <Text style={styles.noImageText}>Memuat foto...</Text>
+              </View>
+            ) : imageError ? (
+              <View style={styles.noImagePlaceholder}>
+                <Ionicons name="image-outline" size={48} color="#FCA5A5" />
+                <Text style={[styles.noImageText, { color: '#EF4444' }]}>Foto gagal dimuat</Text>
+                <TouchableOpacity onPress={() => setImageError(false)}>
+                  <Text style={styles.retryText}>Coba Lagi</Text>
+                </TouchableOpacity>
+              </View>
             ) : (
               <View style={styles.noImagePlaceholder}>
                 <Ionicons name="images-outline" size={48} color="#94A3B8" />
@@ -301,10 +334,8 @@ export default function LaporanDetail() {
           {isAdmin && (
             <View style={styles.adminActionCard}>
               <Text style={styles.adminTitle}>Verifikasi Tindakan Administrator</Text>
-              <Text style={styles.adminDesc}>
-                Tentukan hasil pemeriksaan aduan masyarakat ini:
-              </Text>
-              
+              <Text style={styles.adminDesc}>Tentukan hasil pemeriksaan aduan masyarakat ini:</Text>
+
               {isActionLoading ? (
                 <ActivityIndicator color="#2563EB" size="small" style={{ marginVertical: 8 }} />
               ) : (
@@ -312,7 +343,7 @@ export default function LaporanDetail() {
                   <TouchableOpacity
                     style={[styles.actionBtn, styles.approveBtn, report.status === 'approved' && styles.actionBtnDisabled]}
                     onPress={() => handleStatusUpdate('approved')}
-                    disabled={report.status === 'approved'}
+                    disabled={report.status === 'approved' || isActionLoading}
                   >
                     <Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" />
                     <Text style={styles.actionBtnText}>Setujui</Text>
@@ -321,7 +352,7 @@ export default function LaporanDetail() {
                   <TouchableOpacity
                     style={[styles.actionBtn, styles.rejectBtn, report.status === 'rejected' && styles.actionBtnDisabled]}
                     onPress={() => handleStatusUpdate('rejected')}
-                    disabled={report.status === 'rejected'}
+                    disabled={report.status === 'rejected' || isActionLoading}
                   >
                     <Ionicons name="close-circle-outline" size={18} color="#FFFFFF" />
                     <Text style={styles.actionBtnText}>Tolak</Text>
@@ -331,6 +362,7 @@ export default function LaporanDetail() {
                     <TouchableOpacity
                       style={[styles.actionBtn, styles.pendingBtn]}
                       onPress={() => handleStatusUpdate('pending')}
+                      disabled={isActionLoading}
                     >
                       <Ionicons name="time-outline" size={18} color="#475569" />
                       <Text style={[styles.actionBtnText, { color: '#475569' }]}>Tinjau Ulang</Text>
@@ -357,9 +389,6 @@ export default function LaporanDetail() {
               </View>
             ) : (
               report.comments.map((comment) => {
-                const commentBadge = getStatusBadgeStyle(
-                  comment.user?.role === 'super_admin' ? 'approved' : comment.user?.role === 'admin' ? 'pending' : ''
-                );
                 const isCommentOwner = user?.id === comment.user_id;
                 const canDeleteComment = isCommentOwner || isAdmin;
 
@@ -376,8 +405,24 @@ export default function LaporanDetail() {
                           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                             <Text style={styles.commentUsername}>{comment.user?.username}</Text>
                             {comment.user?.role !== 'user' && (
-                              <View style={[styles.roleMiniBadge, { backgroundColor: comment.user?.role === 'super_admin' ? '#EEF2FF' : '#F5F3FF' }]}>
-                                <Text style={[styles.roleMiniBadgeText, { color: comment.user?.role === 'super_admin' ? '#4F46E5' : '#7C3AED' }]}>
+                              <View
+                                style={[
+                                  styles.roleMiniBadge,
+                                  {
+                                    backgroundColor:
+                                      comment.user?.role === 'super_admin' ? '#EEF2FF' : '#F5F3FF',
+                                  },
+                                ]}
+                              >
+                                <Text
+                                  style={[
+                                    styles.roleMiniBadgeText,
+                                    {
+                                      color:
+                                        comment.user?.role === 'super_admin' ? '#4F46E5' : '#7C3AED',
+                                    },
+                                  ]}
+                                >
                                   {comment.user?.role === 'super_admin' ? 'Super Admin' : 'Admin'}
                                 </Text>
                               </View>
@@ -404,7 +449,7 @@ export default function LaporanDetail() {
           </View>
         </ScrollView>
 
-        {/* Floating Input Box for commenting at the bottom */}
+        {/* Floating Input Box for commenting */}
         {canComment ? (
           <View style={styles.commentInputContainer}>
             <TextInput
@@ -417,7 +462,10 @@ export default function LaporanDetail() {
               maxLength={300}
             />
             <TouchableOpacity
-              style={[styles.sendCommentBtn, (!commentText.trim() || isCommentSubmitting) && styles.sendCommentBtnDisabled]}
+              style={[
+                styles.sendCommentBtn,
+                (!commentText.trim() || isCommentSubmitting) && styles.sendCommentBtnDisabled,
+              ]}
               onPress={handleCommentSubmit}
               disabled={!commentText.trim() || isCommentSubmitting}
             >
@@ -487,7 +535,7 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   scrollContainer: {
-    paddingBottom: 80, // space for comment bar
+    paddingBottom: 80,
   },
   imageCard: {
     backgroundColor: '#FFFFFF',
@@ -510,6 +558,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#64748B',
     marginTop: 8,
+  },
+  retryText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#2563EB',
+    marginTop: 8,
+    textDecorationLine: 'underline',
   },
   detailsCard: {
     backgroundColor: '#FFFFFF',
@@ -539,7 +594,7 @@ const styles = StyleSheet.create({
   },
   reportTitle: {
     fontSize: 18,
-    fontWeight: '850',
+    fontWeight: 'bold',
     color: '#1E293B',
     lineHeight: 24,
     marginBottom: 8,
@@ -614,10 +669,10 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   approveBtn: {
-    backgroundColor: '#10B981', // Emerald 500
+    backgroundColor: '#10B981',
   },
   rejectBtn: {
-    backgroundColor: '#EF4444', // Red 500
+    backgroundColor: '#EF4444',
   },
   pendingBtn: {
     backgroundColor: '#FFFFFF',

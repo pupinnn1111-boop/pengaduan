@@ -105,6 +105,10 @@ const getLaporanById = async (req, res, next) => {
  */
 const createLaporan = async (req, res, next) => {
   try {
+    console.log('CONTENT TYPE:', req.headers['content-type']);
+    console.log('BODY:', req.body);
+    console.log('FILE:', req.file);
+
     const { category_id, title, description } = req.body;
 
     // Cek kategori ada

@@ -227,6 +227,17 @@ export async function deleteComment(id: number): Promise<ApiResponse<null>> {
 }
 
 // ============================================================
+// Shared helper: build full image URL from image path
+// ============================================================
+export function buildImageUrl(baseUrl: string, imagePath: string | null): string | null {
+  if (!imagePath || !baseUrl) return null;
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) return imagePath;
+  const cleaned = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
+  if (cleaned.startsWith('uploads/')) return `${baseUrl}/${cleaned}`;
+  return `${baseUrl}/uploads/${cleaned}`;
+}
+
+// ============================================================
 // Users API Endpoints (restricted to super_admin)
 // ============================================================
 export async function getUsers(): Promise<ApiResponse<User[]>> {

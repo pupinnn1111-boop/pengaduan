@@ -133,7 +133,9 @@ export default function CreateLaporanPage() {
       if (imageFile) {
         formData.append('image', imageFile);
       }
-
+      for (const [key, value] of formData.entries()) {
+        console.log(key, value);
+      }
       await createLaporan(formData);
       toast.success('Pengaduan berhasil dibuat!');
       router.push('/laporan');

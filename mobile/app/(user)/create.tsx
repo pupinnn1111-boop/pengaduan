@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -26,6 +26,7 @@ export default function CreateLaporan() {
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
   
   // Lists
   const [categories, setCategories] = useState<Category[]>([]);
@@ -58,7 +59,9 @@ export default function CreateLaporan() {
   }, []);
 
   const handlePickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const { status } =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+  
     if (status !== 'granted') {
       Alert.alert(
         'Izin Akses Galeri',
@@ -66,78 +69,129 @@ export default function CreateLaporan() {
       );
       return;
     }
-
+  
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       quality: 0.7,
     });
-
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      setImageUri(result.assets[0].uri);
+  
+    if (!result.canceled && result.assets?.length > 0) {
+      const asset = result.assets[0];
+  
+      setImageUri(asset.uri);
+  
+      // WEB
+      if (Platform.OS === 'web') {
+        try {
+          const response = await fetch(asset.uri);
+          const blob = await response.blob();
+  
+          const file = new File(
+            [blob],
+            asset.fileName || `image-${Date.now()}.jpg`,
+            {
+              type: blob.type || 'image/jpeg',
+            }
+          );
+  
+          setImageFile(file);
+  
+          console.log('WEB FILE CREATED:', file);
+        } catch (err) {
+          console.error('FAILED CREATE FILE:', err);
+        }
+      }
     }
   };
 
   const handleRemoveImage = () => {
     setImageUri(null);
+    setImageFile(null);
   };
 
+  const isSubmittingRef = useRef(false);
+
   const handleSubmit = async () => {
+    if (isSubmittingRef.current) return;
+  
     if (!title.trim() || !description.trim() || !categoryId) {
       setErrorMsg('Judul, deskripsi, dan kategori wajib diisi');
       return;
     }
-
+  
+    isSubmittingRef.current = true;
     setErrorMsg(null);
     setIsLoading(true);
-
+  
     try {
       const formData = new FormData();
+  
       formData.append('title', title.trim());
       formData.append('description', description.trim());
       formData.append('category_id', String(categoryId));
-
-      if (imageUri) {
-        const uriParts = imageUri.split('/');
-        const filename = uriParts[uriParts.length - 1];
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : `image/jpeg`;
-
-        formData.append('image', {
-          uri: Platform.OS === 'ios' ? imageUri.replace('file://', '') : imageUri,
-          name: filename,
-          type,
-        } as any);
-      }
-
-      const res = await api.createLaporan(formData);
-      setIsLoading(false);
-
-      if (res.success) {
-        Alert.alert(
-          'Sukses',
-          'Laporan aduan Anda berhasil dikirim dan akan segera diverifikasi oleh administrator.',
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                // Clear fields
-                setTitle('');
-                setDescription('');
-                setImageUri(null);
-                // Redirect back to dashboard list
-                router.replace('/(user)');
-              },
-            },
-          ]
-        );
+  
+      if (Platform.OS === 'web') {
+        if (imageFile) {
+          formData.append('image', imageFile);
+        }
       } else {
-        setErrorMsg(res.message || 'Gagal mengirim laporan');
+        if (imageUri) {
+          const filename =
+            imageUri.split('/')[imageUri.split('/').length - 1];
+  
+          const match = /\.(\w+)$/.exec(filename);
+  
+          const type = match
+            ? `image/${match[1].toLowerCase()}`
+            : 'image/jpeg';
+  
+          formData.append(
+            'image',
+            {
+              uri:
+                Platform.OS === 'ios'
+                  ? imageUri.replace('file://', '')
+                  : imageUri,
+              name: filename,
+              type,
+            } as any
+          );
+        }
       }
+  
+      const res = await api.createLaporan(formData);
+  
+      if (res.success) {
+        Alert.alert('Sukses', 'Laporan berhasil dikirim!');
+  
+        // reset form
+        setTitle('');
+        setDescription('');
+        setCategoryId(categories.length ? categories[0].id : null);
+        setImageUri(null);
+        setImageFile(null);
+  
+        // redirect setelah 1 detik
+        setTimeout(() => {
+          router.replace('/(user)');
+        }, 1000);
+  
+        return;
+      }
+  
+      setErrorMsg(res.message || 'Gagal mengirim laporan');
     } catch (e: any) {
+      console.error('SUBMIT ERROR:', e);
+  
+      setErrorMsg(
+        e?.response?.data?.message ||
+        e?.message ||
+        'Terjadi kesalahan'
+      );
+    } finally {
       setIsLoading(false);
-      console.log('Upload error details:', e);
-      setErrorMsg(e.response?.data?.message || e.message || 'Terjadi kesalahan saat mengunggah');
+      isSubmittingRef.current = false;
     }
   };
 
@@ -262,10 +316,11 @@ export default function CreateLaporan() {
 
             {/* Submit */}
             <TouchableOpacity
-              style={[styles.submitBtn, isLoading && styles.submitBtnDisabled]}
-              onPress={handleSubmit}
-              disabled={isLoading}
-            >
+  style={[styles.submitBtn, (isLoading || isSubmittingRef.current) && styles.submitBtnDisabled]}
+  onPress={handleSubmit}
+  disabled={isLoading || isSubmittingRef.current}
+  activeOpacity={isLoading || isSubmittingRef.current ? 1 : 0.8}
+>
               {isLoading ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (

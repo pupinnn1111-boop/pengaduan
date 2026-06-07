@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   SafeAreaView,
+  Image,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useRouter } from 'expo-router';
@@ -20,6 +21,7 @@ export default function SuperAdminDashboard() {
   const { user } = useAuth();
   const router = useRouter();
 
+  const [resolvedBaseUrl, setResolvedBaseUrl] = useState('');
   const [reports, setReports] = useState<Laporan[]>([]);
   const [stats, setStats] = useState({
     total: 0,
@@ -31,6 +33,10 @@ export default function SuperAdminDashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>(''); // default to empty (all)
+
+  useEffect(() => {
+    api.getApiBaseUrl().then((url) => setResolvedBaseUrl(url));
+  }, []);
 
   const fetchSuperAdminData = useCallback(async (showLoader = false) => {
     if (showLoader) setIsLoading(true);
@@ -107,11 +113,21 @@ export default function SuperAdminDashboard() {
 
   const renderReportItem = ({ item }: { item: Laporan }) => {
     const badge = getStatusBadgeStyle(item.status);
+    const thumbUri = api.buildImageUrl(resolvedBaseUrl, item.image);
     return (
       <TouchableOpacity
         style={styles.reportCard}
+        activeOpacity={0.7}
         onPress={() => router.push({ pathname: '/laporan/[id]', params: { id: item.id } })}
       >
+        {thumbUri && (
+          <Image
+            source={{ uri: thumbUri }}
+            style={styles.listThumb}
+            resizeMode="cover"
+          />
+        )}
+
         <View style={styles.cardHeader}>
           <View style={[styles.badge, { backgroundColor: badge.bg }]}>
             <Text style={[styles.badgeText, { color: badge.text }]}>{badge.label}</Text>
@@ -407,6 +423,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.02,
     shadowRadius: 8,
     elevation: 1,
+    overflow: 'hidden',
+  },
+  listThumb: {
+    width: '100%',
+    height: 140,
+    borderRadius: 12,
+    marginBottom: 12,
+    backgroundColor: '#F1F5F9',
   },
   cardHeader: {
     flexDirection: 'row',
