@@ -18,7 +18,6 @@ import {
   HiArrowLeft, 
   HiChatBubbleLeftEllipsis,
   HiTrash,
-  HiPencilSquare,
   HiChevronRight,
   HiMapPin
 } from 'react-icons/hi2';
@@ -145,7 +144,6 @@ export default function DetailLaporanPage() {
   // Enforce access: User can only write comment if they own the report OR if they are admin/super_admin
   const canComment = user?.role !== 'user' || user.id === report.user_id;
   const canDeleteReport = user?.role === 'super_admin' || (user?.role === 'user' && user.id === report.user_id);
-  const canEditReport = user?.role !== 'admin' && (user?.role === 'super_admin' || (user?.role === 'user' && user.id === report.user_id));
 
   return (
     <div className="space-y-6">
@@ -172,15 +170,6 @@ export default function DetailLaporanPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          {canEditReport && (
-            <Link href={`/laporan/${report.id}/edit`}>
-              <Button variant="outline" className="gap-2 rounded-xl text-text-secondary">
-                <HiPencilSquare className="h-5 w-5" />
-                Edit
-              </Button>
-            </Link>
-          )}
-
           {canDeleteReport && (
             <Button
               variant="danger"
