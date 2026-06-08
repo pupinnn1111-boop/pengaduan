@@ -12,6 +12,8 @@ import {
   Modal,
   Alert,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as api from '../../lib/api';
@@ -31,6 +33,8 @@ export default function ManageUsers() {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<'user' | 'admin' | 'super_admin'>('user');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [openRoleUserId, setOpenRoleUserId] = useState<number | null>(null);
 
   const fetchUsers = useCallback(async (showLoader = false) => {
     if (showLoader) setIsLoading(true);
@@ -145,25 +149,28 @@ export default function ManageUsers() {
     );
   };
 
-  const handleToggleRole = async (item: User) => {
-    // Cycles roles: user -> admin -> super_admin -> user
-    let newRole: 'user' | 'admin' | 'super_admin' = 'user';
-    if (item.role === 'user') newRole = 'admin';
-    else if (item.role === 'admin') newRole = 'super_admin';
-
+  const handleRoleChange = async (
+    userId: number,
+    username: string,
+    newRole: 'user' | 'admin' | 'super_admin'
+  ) => {
     try {
-      setIsLoading(true);
-      const res = await api.updateUser(item.id, { role: newRole });
+      const res = await api.updateUser(userId, {
+        role: newRole,
+      });
+  
       if (res.success) {
-        Alert.alert('Sukses', `Peran ${item.username} diubah menjadi ${newRole}`);
+        Alert.alert(
+          'Sukses',
+          `Role ${username} berhasil diubah menjadi ${newRole}`
+        );
+  
+        setOpenRoleUserId(null);
         fetchUsers(true);
       } else {
-        Alert.alert('Gagal', res.message || 'Gagal mengubah peran');
-        setIsLoading(false);
+        Alert.alert('Gagal', res.message || 'Gagal mengubah role');
       }
     } catch (e: any) {
-      setIsLoading(false);
-      console.error(e);
       Alert.alert('Gagal', e.message);
     }
   };
@@ -193,12 +200,46 @@ export default function ManageUsers() {
           
           {/* Role Pill Indicator */}
           <TouchableOpacity
-            style={[styles.roleBadge, { backgroundColor: badge.bg }]}
-            onPress={() => handleToggleRole(item)}
-          >
+  style={[styles.roleBadge, { backgroundColor: badge.bg }]}
+  onPress={() =>
+    setOpenRoleUserId(
+      openRoleUserId === item.id ? null : item.id
+    )
+  }
+>
             <Text style={[styles.roleBadgeText, { color: badge.text }]}>{badge.label}</Text>
             <Ionicons name="swap-horizontal" size={10} color={badge.text} style={{ marginLeft: 4 }} />
           </TouchableOpacity>
+          {openRoleUserId === item.id && (
+  <View style={styles.roleDropdown}>
+    <TouchableOpacity
+      style={styles.roleDropdownItem}
+      onPress={() =>
+        handleRoleChange(item.id, item.username, 'user')
+      }
+    >
+      <Text>User</Text>
+    </TouchableOpacity>
+
+    <TouchableOpacity
+      style={styles.roleDropdownItem}
+      onPress={() =>
+        handleRoleChange(item.id, item.username, 'admin')
+      }
+    >
+      <Text>Admin</Text>
+    </TouchableOpacity>
+
+    <TouchableOpacity
+      style={styles.roleDropdownItem}
+      onPress={() =>
+        handleRoleChange(item.id, item.username, 'super_admin')
+      }
+    >
+      <Text>Super Admin</Text>
+    </TouchableOpacity>
+  </View>
+)}
         </View>
 
         <TouchableOpacity
@@ -384,6 +425,22 @@ export default function ManageUsers() {
 }
 
 const styles = StyleSheet.create({
+  roleDropdown: {
+    marginTop: 6,
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 8,
+    overflow: 'hidden',
+    width: 130,
+  },
+  
+  roleDropdownItem: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
   safeContainer: {
     flex: 1,
     backgroundColor: '#F5F7FA',

@@ -222,6 +222,18 @@ if (user?.role === 'user') {
   const canDeleteReport = canDelete;
   const canComment = isAdmin || isOwner;
 
+  const goToDashboard = () => {
+    if (user?.role === 'user') {
+      router.replace('/(user)');
+    } else if (user?.role === 'admin') {
+      router.replace('/(admin)');
+    } else if (user?.role === 'super_admin') {
+      router.replace('/(super_admin)');
+    } else {
+      router.replace('/(auth)/login');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeContainer}>
       <KeyboardAvoidingView
@@ -230,7 +242,7 @@ if (user?.role === 'user') {
       >
         {/* Header toolbar */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.backButton} onPress={() => goToDashboard()}>
             <Ionicons name="arrow-back" size={22} color="#1E293B" />
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
@@ -307,7 +319,7 @@ if (user?.role === 'user') {
           </View>
 
           {/* Admin Action Card */}
-          {isAdmin && !isSuperAdmin && (
+          {isAdmin && (
             <View style={styles.adminActionCard}>
               <Text style={styles.adminTitle}>Verifikasi Tindakan Administrator</Text>
               <Text style={styles.adminDesc}>Tentukan hasil pemeriksaan aduan masyarakat ini:</Text>
