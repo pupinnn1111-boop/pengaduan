@@ -102,39 +102,30 @@ export default function LaporanDetail() {
     }
   };
 
-  const handleDeleteReport = () => {
-    if (!report) return;
-    Alert.alert(
-      'Hapus Laporan',
-      'Apakah Anda yakin ingin menghapus laporan aduan ini secara permanen?',
-      [
-        { text: 'Batal', style: 'cancel' },
-        {
-          text: 'Hapus Laporan',
-          style: 'destructive',
-          onPress: async () => {
-            if (isActionLoadingRef.current) return;
-            isActionLoadingRef.current = true;
-            setIsActionLoading(true);
-            try {
-              const res = await api.deleteLaporan(report.id);
-              if (res.success) {
-                Alert.alert('Sukses', 'Laporan berhasil dihapus');
-                router.back();
-              } else {
-                Alert.alert('Gagal', res.message || 'Gagal menghapus laporan');
-              }
-            } catch (e: any) {
-              console.error(e);
-              Alert.alert('Gagal', e.message);
-            } finally {
-              setIsActionLoading(false);
-              isActionLoadingRef.current = false;
-            }
-          },
-        },
-      ]
-    );
+
+  const handleDeleteReport = async () => {
+    if (!report || isActionLoadingRef.current) return;
+    isActionLoadingRef.current = true;
+    setIsActionLoading(true);
+    try {
+      await api.deleteLaporan(report.id);
+
+window.alert('Laporan berhasil dihapus');
+
+if (user?.role === 'user') {
+  router.replace('/(user)');
+} else if (user?.role === 'admin') {
+  router.replace('/(admin)');
+} else if (user?.role === 'super_admin') {
+  router.replace('/(super_admin)');
+}
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || e?.message || 'Gagal menghapus laporan';
+      Alert.alert('Gagal', msg);
+    } finally {
+      setIsActionLoading(false);
+      isActionLoadingRef.current = false;
+    }
   };
 
   const handleCommentSubmit = async () => {
@@ -164,33 +155,18 @@ export default function LaporanDetail() {
   };
 
   const handleDeleteComment = async (commentId: number) => {
-    Alert.alert(
-      'Hapus Komentar',
-      'Apakah Anda yakin ingin menghapus komentar ini?',
-      [
-        { text: 'Batal', style: 'cancel' },
-        {
-          text: 'Hapus',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const res = await api.deleteComment(commentId);
-              if (res.success) {
-                const reloadRes = await api.getLaporanById(reportId);
-                if (reloadRes.success && reloadRes.data) {
-                  setReport(reloadRes.data);
-                }
-              } else {
-                Alert.alert('Gagal', res.message || 'Gagal menghapus komentar');
-              }
-            } catch (e: any) {
-              console.error(e);
-              Alert.alert('Gagal', e.message);
-            }
-          },
-        },
-      ]
-    );
+    try {
+      await api.deleteComment(commentId);
+      const reloadRes = await api.getLaporanById(reportId);
+      if (reloadRes.success && reloadRes.data) {
+        setReport(reloadRes.data);
+      } else {
+        fetchReportDetails();
+      }
+    } catch (e: any) {
+      const msg = e?.response?.data?.message || e?.message || 'Gagal menghapus komentar';
+      Alert.alert('Gagal', msg);
+    }
   };
 
   const getStatusBadgeStyle = (status: string) => {
@@ -242,7 +218,8 @@ export default function LaporanDetail() {
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
   const isSuperAdmin = user?.role === 'super_admin';
 
-  const canDelete = isSuperAdmin || (user?.role === 'user' && isOwner);
+  const canDelete = user?.role === 'super_admin' || (user?.role === 'user' && isOwner);
+  const canDeleteReport = canDelete;
   const canComment = isAdmin || isOwner;
 
   return (
@@ -262,15 +239,14 @@ export default function LaporanDetail() {
             </Text>
             <Text style={styles.headerSubtitle}>{report.category?.name || 'Aduan'}</Text>
           </View>
-          {canDelete && (
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={handleDeleteReport}
-              disabled={isActionLoading}
-            >
-              <Ionicons name="trash-outline" size={22} color="#EF4444" />
-            </TouchableOpacity>
-          )}
+          {canDeleteReport && (
+ <TouchableOpacity
+ style={styles.deleteButton}
+ onPress={handleDeleteReport}
+>
+ <Ionicons name="trash-outline" size={22} color="#EF4444" />
+</TouchableOpacity>
+)}
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
@@ -390,7 +366,8 @@ export default function LaporanDetail() {
             ) : (
               report.comments.map((comment) => {
                 const isCommentOwner = String(user?.id) === String(comment.user_id);
-const canDeleteComment = isCommentOwner || isAdmin;
+                const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
+                const showDeleteBtn = isCommentOwner || isAdmin;
 
                 return (
                   <View key={comment.id} style={styles.commentCard}>
@@ -434,7 +411,7 @@ const canDeleteComment = isCommentOwner || isAdmin;
                         </View>
                       </View>
 
-                      {canDeleteComment && (
+                      {showDeleteBtn && (
                         <TouchableOpacity
                           style={styles.commentDeleteBtn}
                           onPress={() => handleDeleteComment(comment.id)}
@@ -535,6 +512,8 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     padding: 6,
+    zIndex: 9999,
+    elevation: 9999,
   },
   scrollContainer: {
     paddingBottom: 80,

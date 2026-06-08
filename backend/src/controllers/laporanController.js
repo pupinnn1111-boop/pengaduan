@@ -214,8 +214,21 @@ const updateLaporan = async (req, res, next) => {
  */
 const deleteLaporan = async (req, res, next) => {
   try {
+    console.log('===== DELETE LAPORAN =====');
+    console.log('REQ USER:', req.user);
+    console.log('PARAM ID:', req.params.id);
+
     const laporan = await Laporan.findByPk(req.params.id);
-    if (!laporan) return errorResponse(res, 'Laporan tidak ditemukan', 404);
+
+    console.log('LAPORAN:', laporan?.toJSON());
+
+    if (!laporan) {
+      return errorResponse(res, 'Laporan tidak ditemukan', 404);
+    }
+
+    console.log('ROLE:', req.user.role);
+    console.log('LOGIN USER ID:', req.user.id);
+    console.log('OWNER ID:', laporan.user_id);
 
     // User biasa hanya boleh hapus laporan miliknya
     if (req.user.role === 'user' && laporan.user_id !== req.user.id) {
