@@ -331,7 +331,7 @@ export default function LaporanDetail() {
           </View>
 
           {/* Admin Action Card */}
-          {isAdmin && (
+          {isAdmin && !isSuperAdmin && (
             <View style={styles.adminActionCard}>
               <Text style={styles.adminTitle}>Verifikasi Tindakan Administrator</Text>
               <Text style={styles.adminDesc}>Tentukan hasil pemeriksaan aduan masyarakat ini:</Text>
@@ -389,8 +389,8 @@ export default function LaporanDetail() {
               </View>
             ) : (
               report.comments.map((comment) => {
-                const isCommentOwner = user?.id === comment.user_id;
-                const canDeleteComment = isCommentOwner || isAdmin;
+                const isCommentOwner = String(user?.id) === String(comment.user_id);
+const canDeleteComment = isCommentOwner || isAdmin;
 
                 return (
                   <View key={comment.id} style={styles.commentCard}>
@@ -403,7 +403,9 @@ export default function LaporanDetail() {
                         </View>
                         <View>
                           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <Text style={styles.commentUsername}>{comment.user?.username}</Text>
+                          <Text style={styles.commentUsername}>
+                          {comment.user?.username}
+</Text>
                             {comment.user?.role !== 'user' && (
                               <View
                                 style={[

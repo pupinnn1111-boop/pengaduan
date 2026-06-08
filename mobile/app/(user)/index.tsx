@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native'; // ✅ tambahan import
 import { Ionicons } from '@expo/vector-icons';
 import * as api from '../../lib/api';
 import { Laporan } from '../../lib/api';
@@ -32,7 +33,7 @@ export default function UserDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [search, setSearch] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState<string>(''); // empty means 'all'
+  const [selectedStatus, setSelectedStatus] = useState<string>('');
 
   useEffect(() => {
     api.getApiBaseUrl().then((url) => setResolvedBaseUrl(url));
@@ -41,16 +42,13 @@ export default function UserDashboard() {
   const fetchDashboardData = useCallback(async (showLoader = false) => {
     if (showLoader) setIsLoading(true);
     try {
-      // 1. Fetch user's reports with current filters
       const params: api.LaporanParams = {
-        limit: 100, // fetch plenty for user list
+        limit: 100,
         search: search.trim() || undefined,
         status: selectedStatus || undefined,
       };
       const res = await api.getLaporan(params);
       
-      // 2. Fetch stats for the summary cards
-      // To get correct user stats, we fetch totals by querying the endpoint
       const [resAll, resPending, resApproved, resRejected] = await Promise.all([
         api.getLaporan({ limit: 1 }),
         api.getLaporan({ status: 'pending', limit: 1 }),
@@ -73,6 +71,15 @@ export default function UserDashboard() {
     }
   }, [search, selectedStatus]);
 
+  // ✅ useFocusEffect: refetch data setiap kali halaman ini aktif/difokus
+  // Ini yang jadi kunci fix — dipanggil saat balik dari halaman create
+  useFocusEffect(
+    useCallback(() => {
+      fetchDashboardData(true);
+    }, [fetchDashboardData])
+  );
+
+  // Tetap dipakai untuk filter status berubah
   useEffect(() => {
     fetchDashboardData(true);
   }, [selectedStatus]);
@@ -89,11 +96,11 @@ export default function UserDashboard() {
   const getStatusBadgeStyle = (status: string) => {
     switch (status) {
       case 'pending':
-        return { bg: '#FEF3C7', text: '#D97706', label: 'Menunggu' }; // Amber
+        return { bg: '#FEF3C7', text: '#D97706', label: 'Menunggu' };
       case 'approved':
-        return { bg: '#D1FAE5', text: '#059669', label: 'Disetujui' }; // Emerald
+        return { bg: '#D1FAE5', text: '#059669', label: 'Disetujui' };
       case 'rejected':
-        return { bg: '#FEE2E2', text: '#DC2626', label: 'Ditolak' }; // Red
+        return { bg: '#FEE2E2', text: '#DC2626', label: 'Ditolak' };
       default:
         return { bg: '#F1F5F9', text: '#475569', label: 'Laporan' };
     }
@@ -122,11 +129,7 @@ export default function UserDashboard() {
         onPress={() => router.push({ pathname: '/laporan/[id]', params: { id: item.id } })}
       >
         {thumbUri && (
-          <Image
-            source={{ uri: thumbUri }}
-            style={styles.listThumb}
-            resizeMode="cover"
-          />
+          <Image source={{ uri: thumbUri }} style={styles.listThumb} resizeMode="cover" />
         )}
 
         <View style={styles.cardHeader}>
@@ -136,12 +139,8 @@ export default function UserDashboard() {
           <Text style={styles.categoryText}>{item.category?.name || 'Laporan'}</Text>
         </View>
 
-        <Text style={styles.reportTitle} numberOfLines={1}>
-          {item.title}
-        </Text>
-        <Text style={styles.reportDesc} numberOfLines={2}>
-          {item.description}
-        </Text>
+        <Text style={styles.reportTitle} numberOfLines={1}>{item.title}</Text>
+        <Text style={styles.reportDesc} numberOfLines={2}>{item.description}</Text>
 
         <View style={styles.cardFooter}>
           <View style={styles.dateContainer}>
@@ -160,7 +159,6 @@ export default function UserDashboard() {
   return (
     <SafeAreaView style={styles.safeContainer}>
       <View style={styles.container}>
-        {/* Upper Banner */}
         <View style={styles.welcomeBanner}>
           <View>
             <Text style={styles.greeting}>Halo, {user?.username}!</Text>
@@ -174,7 +172,6 @@ export default function UserDashboard() {
           </TouchableOpacity>
         </View>
 
-        {/* Stats Row */}
         <View style={styles.statsRow}>
           <View style={[styles.statCard, { borderLeftColor: '#2563EB' }]}>
             <Text style={styles.statVal}>{stats.total}</Text>
@@ -194,7 +191,6 @@ export default function UserDashboard() {
           </View>
         </View>
 
-        {/* Search Bar */}
         <View style={styles.searchContainer}>
           <View style={styles.searchWrapper}>
             <Ionicons name="search" size={20} color="#94A3B8" style={styles.searchIcon} />
@@ -218,7 +214,6 @@ export default function UserDashboard() {
           </TouchableOpacity>
         </View>
 
-        {/* Filter Tabs */}
         <View style={styles.filterContainer}>
           {[
             { id: '', label: 'Semua' },
@@ -231,19 +226,13 @@ export default function UserDashboard() {
               style={[styles.filterTab, selectedStatus === tab.id && styles.filterTabActive]}
               onPress={() => setSelectedStatus(tab.id)}
             >
-              <Text
-                style={[
-                  styles.filterTabText,
-                  selectedStatus === tab.id && styles.filterTabTextActive,
-                ]}
-              >
+              <Text style={[styles.filterTabText, selectedStatus === tab.id && styles.filterTabTextActive]}>
                 {tab.label}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        {/* Main List */}
         {isLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#2563EB" />
@@ -282,267 +271,94 @@ export default function UserDashboard() {
 }
 
 const styles = StyleSheet.create({
-  safeContainer: {
-    flex: 1,
-    backgroundColor: '#F5F7FA',
-  },
-  container: {
-    flex: 1,
-    paddingTop: 16,
-  },
+  safeContainer: { flex: 1, backgroundColor: '#F5F7FA' },
+  container: { flex: 1, paddingTop: 16 },
   welcomeBanner: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 20,
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', paddingHorizontal: 20, marginBottom: 20,
   },
-  greeting: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#1E293B',
-  },
-  greetingSub: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 2,
-  },
+  greeting: { fontSize: 22, fontWeight: '800', color: '#1E293B' },
+  greetingSub: { fontSize: 12, color: '#64748B', marginTop: 2 },
   addAduanButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: '#EFF6FF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
+    width: 44, height: 44, borderRadius: 14, backgroundColor: '#EFF6FF',
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1, borderColor: '#BFDBFE',
   },
-  statsRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    gap: 8,
-    marginBottom: 20,
-  },
+  statsRow: { flexDirection: 'row', paddingHorizontal: 20, gap: 8, marginBottom: 20 },
   statCard: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    alignItems: 'center',
-    borderLeftWidth: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.02,
-    shadowRadius: 6,
-    elevation: 1,
+    flex: 1, backgroundColor: '#FFFFFF', borderRadius: 14,
+    paddingVertical: 12, paddingHorizontal: 8, alignItems: 'center',
+    borderLeftWidth: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.02, shadowRadius: 6, elevation: 1,
   },
-  statVal: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#1E293B',
-  },
-  statLabel: {
-    fontSize: 10,
-    color: '#64748B',
-    marginTop: 2,
-    fontWeight: '600',
-  },
+  statVal: { fontSize: 18, fontWeight: '800', color: '#1E293B' },
+  statLabel: { fontSize: 10, color: '#64748B', marginTop: 2, fontWeight: '600' },
   searchContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    gap: 8,
-    marginBottom: 16,
+    flexDirection: 'row', paddingHorizontal: 20, gap: 8, marginBottom: 16,
   },
   searchWrapper: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
-    paddingLeft: 10,
+    flex: 1, flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0',
+    borderRadius: 12, paddingLeft: 10,
   },
-  searchIcon: {
-    marginRight: 6,
-  },
-  searchInput: {
-    flex: 1,
-    height: 40,
-    fontSize: 13,
-    color: '#1E293B',
-  },
+  searchIcon: { marginRight: 6 },
+  searchInput: { flex: 1, height: 40, fontSize: 13, color: '#1E293B' },
   searchButton: {
-    paddingHorizontal: 16,
-    backgroundColor: '#2563EB',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+    paddingHorizontal: 16, backgroundColor: '#2563EB',
+    borderRadius: 12, justifyContent: 'center', alignItems: 'center',
   },
-  searchButtonText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
-  },
+  searchButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
   filterContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    gap: 6,
-    marginBottom: 16,
+    flexDirection: 'row', paddingHorizontal: 20, gap: 6, marginBottom: 16,
   },
-  filterTab: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#E2E8F0',
-  },
-  filterTabActive: {
-    backgroundColor: '#2563EB',
-  },
-  filterTabText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#475569',
-  },
-  filterTabTextActive: {
-    color: '#FFFFFF',
-  },
-  listContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 24,
-    flexGrow: 1,
-  },
+  filterTab: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: '#E2E8F0' },
+  filterTabActive: { backgroundColor: '#2563EB' },
+  filterTabText: { fontSize: 11, fontWeight: '700', color: '#475569' },
+  filterTabTextActive: { color: '#FFFFFF' },
+  listContainer: { paddingHorizontal: 20, paddingBottom: 24, flexGrow: 1 },
   reportCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.02,
-    shadowRadius: 8,
-    elevation: 1,
-    overflow: 'hidden',
+    backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, marginBottom: 12,
+    borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.02,
+    shadowRadius: 8, elevation: 1, overflow: 'hidden',
   },
   listThumb: {
-    width: '100%',
-    height: 140,
-    borderRadius: 12,
-    marginBottom: 12,
-    backgroundColor: '#F1F5F9',
+    width: '100%', height: 140, borderRadius: 12,
+    marginBottom: 12, backgroundColor: '#F1F5F9',
   },
   cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', marginBottom: 8,
   },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  badgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-  },
+  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  badgeText: { fontSize: 10, fontWeight: '700' },
   categoryText: {
-    fontSize: 11,
-    color: '#2563EB',
-    fontWeight: '700',
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
+    fontSize: 11, color: '#2563EB', fontWeight: '700',
+    backgroundColor: '#EFF6FF', paddingHorizontal: 8,
+    paddingVertical: 2, borderRadius: 6,
   },
-  reportTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginBottom: 4,
-  },
-  reportDesc: {
-    fontSize: 12,
-    color: '#64748B',
-    lineHeight: 18,
-    marginBottom: 12,
-  },
+  reportTitle: { fontSize: 15, fontWeight: '700', color: '#1E293B', marginBottom: 4 },
+  reportDesc: { fontSize: 12, color: '#64748B', lineHeight: 18, marginBottom: 12 },
   cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    paddingTop: 10,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 10,
   },
-  dateContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  footerIcon: {
-    marginRight: 4,
-  },
-  dateText: {
-    fontSize: 11,
-    color: '#94A3B8',
-  },
-  actionLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  actionLinkText: {
-    fontSize: 12,
-    color: '#2563EB',
-    fontWeight: '700',
-    marginRight: 2,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  loadingText: {
-    marginTop: 8,
-    fontSize: 12,
-    color: '#64748B',
-  },
+  dateContainer: { flexDirection: 'row', alignItems: 'center' },
+  footerIcon: { marginRight: 4 },
+  dateText: { fontSize: 11, color: '#94A3B8' },
+  actionLink: { flexDirection: 'row', alignItems: 'center' },
+  actionLinkText: { fontSize: 12, color: '#2563EB', fontWeight: '700', marginRight: 2 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 40 },
+  loadingText: { marginTop: 8, fontSize: 12, color: '#64748B' },
   emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 24,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    alignItems: 'center', justifyContent: 'center', paddingVertical: 60,
+    paddingHorizontal: 24, backgroundColor: '#FFFFFF', borderRadius: 18,
+    borderWidth: 1, borderColor: '#E2E8F0',
   },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1E293B',
-    marginTop: 12,
-    marginBottom: 4,
-  },
+  emptyTitle: { fontSize: 16, fontWeight: '700', color: '#1E293B', marginTop: 12, marginBottom: 4 },
   emptyDesc: {
-    fontSize: 12,
-    color: '#64748B',
-    textAlign: 'center',
-    lineHeight: 18,
-    marginBottom: 20,
+    fontSize: 12, color: '#64748B', textAlign: 'center', lineHeight: 18, marginBottom: 20,
   },
-  emptyButton: {
-    backgroundColor: '#2563EB',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  emptyButtonText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
+  emptyButton: { backgroundColor: '#2563EB', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10 },
+  emptyButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
 });

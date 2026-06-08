@@ -32,6 +32,7 @@ export default function CreateLaporanPage() {
   // Image state
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -63,25 +64,22 @@ export default function CreateLaporanPage() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    // Validate size (max 5MB)
+  
     if (file.size > 5 * 1024 * 1024) {
       toast.error('Ukuran foto terlalu besar. Maksimal 5MB.');
       return;
     }
-
-    // Validate type
+  
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
       toast.error('Tipe berkas tidak didukung. Gunakan JPG, PNG, atau WEBP.');
       return;
     }
-
+  
+    setImageError(null); // ✅ hapus error saat foto dipilih
     setImageFile(file);
     const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagePreview(reader.result as string);
-    };
+    reader.onloadend = () => setImagePreview(reader.result as string);
     reader.readAsDataURL(file);
   };
 
@@ -94,23 +92,22 @@ export default function CreateLaporanPage() {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
     if (!file) return;
-
+  
     if (file.size > 5 * 1024 * 1024) {
       toast.error('Ukuran foto terlalu besar. Maksimal 5MB.');
       return;
     }
-
+  
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
       toast.error('Tipe berkas tidak didukung. Gunakan JPG, PNG, atau WEBP.');
       return;
     }
-
+  
+    setImageError(null); // ✅
     setImageFile(file);
     const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagePreview(reader.result as string);
-    };
+    reader.onloadend = () => setImagePreview(reader.result as string);
     reader.readAsDataURL(file);
   };
 
@@ -124,18 +121,22 @@ export default function CreateLaporanPage() {
   };
 
   const onSubmit = async (data: CreateReportForm) => {
+    // ✅ Validasi foto wajib
+    if (!imageFile) {
+      setImageError('Foto bukti wajib dilampirkan');
+      // Scroll ke area upload agar user tahu
+      fileInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+  
     try {
       setIsLoading(true);
       const formData = new FormData();
       formData.append('title', data.title);
       formData.append('description', data.description);
       formData.append('category_id', data.category_id);
-      if (imageFile) {
-        formData.append('image', imageFile);
-      }
-      for (const [key, value] of formData.entries()) {
-        console.log(key, value);
-      }
+      formData.append('image', imageFile);
+  
       await createLaporan(formData);
       toast.success('Pengaduan berhasil dibuat!');
       router.push('/laporan');
@@ -254,57 +255,77 @@ export default function CreateLaporanPage() {
           </Card>
         </div>
 
-        {/* Upload Image Section */}
-        <div className="space-y-4">
-          <h2 className="text-base font-bold text-text-primary">Lampiran Foto Bukti</h2>
-          <Card className="p-6" hover={false}>
-            {imagePreview ? (
-              <div className="space-y-4">
-                <div className="relative h-64 w-full rounded-2xl overflow-hidden bg-background border border-border group">
-                  <img
-                    src={imagePreview}
-                    alt="Preview Laporan"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <button
-                      type="button"
-                      onClick={removeImage}
-                      className="p-2.5 rounded-xl bg-danger hover:bg-red-600 text-white shadow-lg transition-transform hover:scale-105 active:scale-95"
-                    >
-                      <HiXMark className="h-6 w-6" />
-                    </button>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between text-xs text-text-secondary bg-background p-3 rounded-xl border border-border">
-                  <span className="truncate max-w-[180px] font-medium">{imageFile?.name}</span>
-                  <span>{((imageFile?.size || 0) / (1024 * 1024)).toFixed(2)} MB</span>
-                </div>
-              </div>
-            ) : (
-              <div
-                onDragOver={handleDragOver}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-border hover:border-primary hover:bg-blue-50/50 rounded-2xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all min-h-64"
-              >
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleImageChange}
-                  accept="image/*"
-                  className="hidden"
-                />
-                <div className="h-14 w-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-4 shadow-sm">
-                  <HiPhoto className="h-7 w-7" />
-                </div>
-                <p className="text-sm font-bold text-text-primary">Tarik & Letakkan Foto</p>
-                <p className="text-xs text-text-secondary mt-1 max-w-[200px]">atau klik area ini untuk memilih berkas dari komputer.</p>
-                <p className="text-[10px] text-text-muted mt-4">Format: JPG, PNG, WEBP. Maksimal 5MB.</p>
-              </div>
-            )}
-          </Card>
+       {/* Upload Image Section */}
+<div className="space-y-4">
+  <div className="flex items-center justify-between">
+    <h2 className="text-base font-bold text-text-primary">Lampiran Foto Bukti</h2>
+    {/* ✅ Badge wajib */}
+    <span className="text-[10px] font-semibold text-danger bg-red-50 px-2 py-0.5 rounded-full border border-red-200">
+      Wajib
+    </span>
+  </div>
+  <Card className="p-6" hover={false}>
+    {imagePreview ? (
+      <div className="space-y-4">
+        <div className="relative h-64 w-full rounded-2xl overflow-hidden bg-background border border-border group">
+          <img src={imagePreview} alt="Preview Laporan" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+            <button
+              type="button"
+              onClick={removeImage}
+              className="p-2.5 rounded-xl bg-danger hover:bg-red-600 text-white shadow-lg transition-transform hover:scale-105 active:scale-95"
+            >
+              <HiXMark className="h-6 w-6" />
+            </button>
+          </div>
         </div>
+        <div className="flex items-center justify-between text-xs text-text-secondary bg-background p-3 rounded-xl border border-border">
+          <span className="truncate max-w-[180px] font-medium">{imageFile?.name}</span>
+          <span>{((imageFile?.size || 0) / (1024 * 1024)).toFixed(2)} MB</span>
+        </div>
+      </div>
+    ) : (
+      <>
+        <div
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          className={`border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all min-h-64 ${
+            imageError
+              ? 'border-danger bg-red-50/50 hover:border-red-400' // ✅ merah saat error
+              : 'border-border hover:border-primary hover:bg-blue-50/50'
+          }`}
+        >
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleImageChange}
+            accept="image/*"
+            className="hidden"
+          />
+          <div className={`h-14 w-14 rounded-2xl flex items-center justify-center mb-4 shadow-sm ${
+            imageError ? 'bg-red-100 text-danger' : 'bg-primary/10 text-primary'
+          }`}>
+            <HiPhoto className="h-7 w-7" />
+          </div>
+          <p className={`text-sm font-bold ${imageError ? 'text-danger' : 'text-text-primary'}`}>
+            Tarik & Letakkan Foto
+          </p>
+          <p className="text-xs text-text-secondary mt-1 max-w-[200px]">
+            atau klik area ini untuk memilih berkas dari komputer.
+          </p>
+          <p className="text-[10px] text-text-muted mt-4">Format: JPG, PNG, WEBP. Maksimal 5MB.</p>
+        </div>
+        {/* ✅ Pesan error di bawah area upload */}
+        {imageError && (
+          <p className="text-xs text-danger font-medium mt-2 flex items-center gap-1">
+            <span>⚠</span> {imageError}
+          </p>
+        )}
+      </>
+    )}
+  </Card>
+</div>
       </div>
     </div>
   );

@@ -345,7 +345,7 @@ export default function DetailLaporanPage() {
               </div>
             ) : (
               report.comments.map((comment) => {
-                const isCommentOwner = user?.id === comment.user_id;
+                const isCommentOwner = String(user?.id) === String(comment.user_id);
                 const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
                 const showDeleteBtn = isCommentOwner || isAdmin;
                 

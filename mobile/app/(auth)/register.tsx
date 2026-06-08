@@ -65,11 +65,6 @@ export default function RegisterScreen() {
       style={styles.container}
     >
       <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
-        {/* Back button */}
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#64748B" />
-        </TouchableOpacity>
-
         {/* Brand Header */}
         <View style={styles.header}>
           <View style={styles.logoContainer}>

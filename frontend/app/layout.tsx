@@ -10,20 +10,23 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-  className,
 }: Readonly<{
   children: React.ReactNode;
-  className?: string;
 }>) {
   return (
-    <html lang="id" className="h-full scroll-smooth">
+    <html
+      lang="id"
+      className="h-full scroll-smooth"
+      data-scroll-behavior="smooth"
+    >
       <body className="min-h-full flex flex-col antialiased bg-background text-text-primary">
         <AuthProvider>
           {children}
-          <Toaster 
+          <Toaster
             position="top-right"
             toastOptions={{
-              className: 'shadow-soft border border-border bg-surface text-text-primary rounded-xl text-sm font-medium',
+              className:
+                'shadow-soft border border-border bg-surface text-text-primary rounded-xl text-sm font-medium',
               duration: 4000,
             }}
           />

@@ -28,16 +28,13 @@ export default function CreateLaporan() {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   
-  // Lists
   const [categories, setCategories] = useState<Category[]>([]);
   const [showCategorySelector, setShowCategorySelector] = useState(false);
 
-  // States
   const [isLoading, setIsLoading] = useState(false);
   const [isCategoriesLoading, setIsCategoriesLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Fetch categories on mount
   useEffect(() => {
     async function fetchCategories() {
       try {
@@ -45,9 +42,7 @@ export default function CreateLaporan() {
         const res = await api.getCategories();
         if (res.success && res.data) {
           setCategories(res.data);
-          if (res.data.length > 0) {
-            setCategoryId(res.data[0].id); // select first by default
-          }
+          setCategoryId(null);
         }
       } catch (e) {
         console.error('Failed to load categories:', e);
@@ -59,8 +54,7 @@ export default function CreateLaporan() {
   }, []);
 
   const handlePickImage = async () => {
-    const { status } =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
   
     if (status !== 'granted') {
       Alert.alert(
@@ -78,26 +72,18 @@ export default function CreateLaporan() {
   
     if (!result.canceled && result.assets?.length > 0) {
       const asset = result.assets[0];
-  
       setImageUri(asset.uri);
   
-      // WEB
       if (Platform.OS === 'web') {
         try {
           const response = await fetch(asset.uri);
           const blob = await response.blob();
-  
           const file = new File(
             [blob],
             asset.fileName || `image-${Date.now()}.jpg`,
-            {
-              type: blob.type || 'image/jpeg',
-            }
+            { type: blob.type || 'image/jpeg' }
           );
-  
           setImageFile(file);
-  
-          console.log('WEB FILE CREATED:', file);
         } catch (err) {
           console.error('FAILED CREATE FILE:', err);
         }
@@ -126,68 +112,55 @@ export default function CreateLaporan() {
   
     try {
       const formData = new FormData();
-  
       formData.append('title', title.trim());
       formData.append('description', description.trim());
       formData.append('category_id', String(categoryId));
   
       if (Platform.OS === 'web') {
-        if (imageFile) {
-          formData.append('image', imageFile);
-        }
+        if (imageFile) formData.append('image', imageFile);
       } else {
         if (imageUri) {
-          const filename =
-            imageUri.split('/')[imageUri.split('/').length - 1];
-  
+          const filename = imageUri.split('/')[imageUri.split('/').length - 1];
           const match = /\.(\w+)$/.exec(filename);
-  
-          const type = match
-            ? `image/${match[1].toLowerCase()}`
-            : 'image/jpeg';
-  
-          formData.append(
-            'image',
-            {
-              uri:
-                Platform.OS === 'ios'
-                  ? imageUri.replace('file://', '')
-                  : imageUri,
-              name: filename,
-              type,
-            } as any
-          );
+          const type = match ? `image/${match[1].toLowerCase()}` : 'image/jpeg';
+          formData.append('image', {
+            uri: Platform.OS === 'ios' ? imageUri.replace('file://', '') : imageUri,
+            name: filename,
+            type,
+          } as any);
         }
       }
   
       const res = await api.createLaporan(formData);
   
       if (res.success) {
-        Alert.alert('Sukses', 'Laporan berhasil dikirim!');
-  
-        // reset form
+        // Reset form dulu
         setTitle('');
         setDescription('');
-        setCategoryId(categories.length ? categories[0].id : null);
+        setCategoryId(null);
         setImageUri(null);
         setImageFile(null);
-  
-        // redirect setelah 1 detik
-        setTimeout(() => {
+      
+        // ✅ Fix untuk web: langsung navigate, alert pakai cara berbeda
+        if (Platform.OS === 'web') {
+          window.alert('Laporan berhasil dikirim!');
           router.replace('/(user)');
-        }, 1000);
-  
+        } else {
+          Alert.alert('Sukses', 'Laporan berhasil dikirim!', [
+            {
+              text: 'OK',
+              onPress: () => router.replace('/(user)'),
+            },
+          ]);
+        }
         return;
       }
   
       setErrorMsg(res.message || 'Gagal mengirim laporan');
     } catch (e: any) {
       console.error('SUBMIT ERROR:', e);
-  
       setErrorMsg(
-        e?.response?.data?.message ||
-        e?.message ||
-        'Terjadi kesalahan'
+        e?.response?.data?.message || e?.message || 'Terjadi kesalahan'
       );
     } finally {
       setIsLoading(false);
@@ -220,7 +193,6 @@ export default function CreateLaporan() {
               </View>
             )}
 
-            {/* Title */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Judul Laporan</Text>
               <TextInput
@@ -232,7 +204,6 @@ export default function CreateLaporan() {
               />
             </View>
 
-            {/* Category Dropdown Selection */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Kategori Aduan</Text>
               {isCategoriesLoading ? (
@@ -251,7 +222,6 @@ export default function CreateLaporan() {
                 </TouchableOpacity>
               )}
 
-              {/* Popup category options */}
               {showCategorySelector && (
                 <View style={styles.selectorDropdown}>
                   {categories.map((c) => (
@@ -263,24 +233,16 @@ export default function CreateLaporan() {
                         setShowCategorySelector(false);
                       }}
                     >
-                      <Text
-                        style={[
-                          styles.dropdownItemText,
-                          categoryId === c.id && styles.dropdownItemTextActive,
-                        ]}
-                      >
+                      <Text style={[styles.dropdownItemText, categoryId === c.id && styles.dropdownItemTextActive]}>
                         {c.name}
                       </Text>
-                      {categoryId === c.id && (
-                        <Ionicons name="checkmark" size={18} color="#2563EB" />
-                      )}
+                      {categoryId === c.id && <Ionicons name="checkmark" size={18} color="#2563EB" />}
                     </TouchableOpacity>
                   ))}
                 </View>
               )}
             </View>
 
-            {/* Description */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Detail Pengaduan</Text>
               <TextInput
@@ -295,7 +257,6 @@ export default function CreateLaporan() {
               />
             </View>
 
-            {/* Image Upload */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Foto Bukti Lampiran (Opsional)</Text>
               {imageUri ? (
@@ -314,13 +275,12 @@ export default function CreateLaporan() {
               )}
             </View>
 
-            {/* Submit */}
             <TouchableOpacity
-  style={[styles.submitBtn, (isLoading || isSubmittingRef.current) && styles.submitBtnDisabled]}
-  onPress={handleSubmit}
-  disabled={isLoading || isSubmittingRef.current}
-  activeOpacity={isLoading || isSubmittingRef.current ? 1 : 0.8}
->
+              style={[styles.submitBtn, (isLoading || isSubmittingRef.current) && styles.submitBtnDisabled]}
+              onPress={handleSubmit}
+              disabled={isLoading || isSubmittingRef.current}
+              activeOpacity={isLoading || isSubmittingRef.current ? 1 : 0.8}
+            >
               {isLoading ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
               ) : (
@@ -338,201 +298,76 @@ export default function CreateLaporan() {
 }
 
 const styles = StyleSheet.create({
-  safeContainer: {
-    flex: 1,
-    backgroundColor: '#F5F7FA',
-  },
-  keyboardContainer: {
-    flex: 1,
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 8,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#1E293B',
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  scrollContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-    paddingTop: 8,
-  },
+  safeContainer: { flex: 1, backgroundColor: '#F5F7FA' },
+  keyboardContainer: { flex: 1 },
+  header: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
+  headerTitle: { fontSize: 20, fontWeight: '800', color: '#1E293B' },
+  headerSubtitle: { fontSize: 12, color: '#64748B', marginTop: 2 },
+  scrollContainer: { paddingHorizontal: 20, paddingBottom: 40, paddingTop: 8 },
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.02,
-    shadowRadius: 8,
-    elevation: 1,
+    backgroundColor: '#FFFFFF', borderRadius: 20, padding: 20,
+    borderWidth: 1, borderColor: '#E2E8F0',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.02, shadowRadius: 8, elevation: 1,
   },
   errorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FCA5A5',
-    padding: 10,
-    borderRadius: 10,
-    marginBottom: 16,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF2F2',
+    borderWidth: 1, borderColor: '#FCA5A5', padding: 10,
+    borderRadius: 10, marginBottom: 16,
   },
-  errorIcon: {
-    marginRight: 6,
-  },
-  errorText: {
-    fontSize: 12,
-    color: '#EF4444',
-    fontWeight: '600',
-    flex: 1,
-  },
-  inputGroup: {
-    marginBottom: 18,
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#475569',
-    marginBottom: 6,
-  },
+  errorIcon: { marginRight: 6 },
+  errorText: { fontSize: 12, color: '#EF4444', fontWeight: '600', flex: 1 },
+  inputGroup: { marginBottom: 18 },
+  label: { fontSize: 12, fontWeight: '700', color: '#475569', marginBottom: 6 },
   input: {
-    height: 48,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    fontSize: 14,
-    color: '#1E293B',
+    height: 48, backgroundColor: '#F8FAFC', borderWidth: 1,
+    borderColor: '#E2E8F0', borderRadius: 12, paddingHorizontal: 14,
+    fontSize: 14, color: '#1E293B',
   },
-  textArea: {
-    height: 120,
-    paddingTop: 12,
-  },
+  textArea: { height: 120, paddingTop: 12 },
   selectorWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
-    height: 48,
-    paddingHorizontal: 14,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0',
+    borderRadius: 12, height: 48, paddingHorizontal: 14,
   },
-  selectorText: {
-    fontSize: 14,
-    color: '#1E293B',
-    fontWeight: '500',
-  },
+  selectorText: { fontSize: 14, color: '#1E293B', fontWeight: '500' },
   selectorDropdown: {
-    marginTop: 6,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
+    marginTop: 6, backgroundColor: '#FFFFFF', borderWidth: 1,
+    borderColor: '#E2E8F0', borderRadius: 12, overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05, shadowRadius: 8, elevation: 3,
   },
   dropdownItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 12, paddingHorizontal: 14,
+    borderBottomWidth: 1, borderBottomColor: '#F1F5F9',
   },
-  dropdownItemActive: {
-    backgroundColor: '#EFF6FF',
-  },
-  dropdownItemText: {
-    fontSize: 14,
-    color: '#475569',
-  },
-  dropdownItemTextActive: {
-    color: '#2563EB',
-    fontWeight: '700',
-  },
+  dropdownItemActive: { backgroundColor: '#EFF6FF' },
+  dropdownItemText: { fontSize: 14, color: '#475569' },
+  dropdownItemTextActive: { color: '#2563EB', fontWeight: '700' },
   imagePickerBtn: {
-    height: 120,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: '#BFDBFE',
-    backgroundColor: '#EFF6FF',
-    justifyContent: 'center',
-    alignItems: 'center',
+    height: 120, borderRadius: 12, borderWidth: 1.5,
+    borderStyle: 'dashed', borderColor: '#BFDBFE',
+    backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center',
   },
-  imagePickerText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#2563EB',
-    marginTop: 6,
-  },
-  imagePickerSubtext: {
-    fontSize: 10,
-    color: '#64748B',
-    marginTop: 2,
-  },
+  imagePickerText: { fontSize: 13, fontWeight: '700', color: '#2563EB', marginTop: 6 },
+  imagePickerSubtext: { fontSize: 10, color: '#64748B', marginTop: 2 },
   imagePreviewContainer: {
-    position: 'relative',
-    height: 180,
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    position: 'relative', height: 180, borderRadius: 12,
+    overflow: 'hidden', borderWidth: 1, borderColor: '#E2E8F0',
   },
-  imagePreview: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
+  imagePreview: { width: '100%', height: '100%', resizeMode: 'cover' },
   removeImageBtn: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(30, 41, 59, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    position: 'absolute', top: 8, right: 8, width: 28, height: 28,
+    borderRadius: 14, backgroundColor: 'rgba(30, 41, 59, 0.7)',
+    justifyContent: 'center', alignItems: 'center',
   },
   submitBtn: {
-    height: 50,
-    backgroundColor: '#2563EB',
-    borderRadius: 14,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 10,
-    shadowColor: '#2563EB',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 3,
+    height: 50, backgroundColor: '#2563EB', borderRadius: 14,
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+    marginTop: 10, shadowColor: '#2563EB', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15, shadowRadius: 8, elevation: 3,
   },
-  submitBtnDisabled: {
-    backgroundColor: '#93C5FD',
-  },
-  submitBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-  },
+  submitBtnDisabled: { backgroundColor: '#93C5FD' },
+  submitBtnText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
 });

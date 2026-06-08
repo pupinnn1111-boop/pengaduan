@@ -40,7 +40,7 @@ const getAllComments = async (req, res, next) => {
     const comments = await Comment.findAll({
       where,
       include: [
-        { model: User, as: 'user', attributes: ['id', 'username'] },
+        { model: User, as: 'user', attributes: ['id', 'username', 'role'] },
         { model: Laporan, as: 'laporan', attributes: ['id', 'title'] },
       ],
       order: [['created_at', 'DESC']],
@@ -83,7 +83,7 @@ const createComment = async (req, res, next) => {
 
     const result = await Comment.findByPk(newComment.id, {
       include: [
-        { model: User, as: 'user', attributes: ['id', 'username'] },
+        { model: User, as: 'user', attributes: ['id', 'username', 'role'] },
         { model: Laporan, as: 'laporan', attributes: ['id', 'title'] },
       ],
     });

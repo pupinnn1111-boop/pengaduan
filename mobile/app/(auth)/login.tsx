@@ -81,11 +81,6 @@ export default function LoginScreen() {
       style={styles.container}
     >
       <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
-        {/* Settings gear */}
-        <TouchableOpacity style={styles.settingsButton} onPress={() => setHostModalOpen(true)}>
-          <Ionicons name="settings-outline" size={24} color="#64748B" />
-        </TouchableOpacity>
-
         {/* Brand Header */}
         <View style={styles.header}>
           <View style={styles.logoContainer}>
